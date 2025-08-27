@@ -21,7 +21,7 @@ jobs:
           RESPONSE=$(curl -s https://pypi.org/pypi/lemonade-server/json)
           VERSION=$(echo "$RESPONSE" | python3 -c "
 import sys, json
-data=json.load(sys.stdin)
+data = json.load(sys.stdin)
 if 'info' in data and 'version' in data['info']:
     print(data['info']['version'])
 else:
