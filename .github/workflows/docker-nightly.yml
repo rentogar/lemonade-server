@@ -1,9 +1,9 @@
-name: Build and Push Nightly
+name: Build Lemonade Server on New PyPI Release
 
 on:
   schedule:
-    - cron: "0 2 * * *"   # runs every night at 2 AM UTC
-  workflow_dispatch:       # allows manual trigger
+    - cron: "0 2 * * *"  # nightly at 2 AM UTC
+  workflow_dispatch:     # manual trigger
 
 jobs:
   build:
@@ -13,15 +13,47 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Get latest PyPI version
+        id: pypi
+        run: |
+          LATEST=$(curl -s https://pypi.org/pypi/lemonade-server/json \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])")
+          echo "Latest PyPI version: $LATEST"
+          echo "LATEST_VERSION=$LATEST" >> $GITHUB_ENV
+
+      - name: Get previous built version
+        id: prev
+        run: |
+          if docker pull your-dockerhub-username/lemonade-server:latest 2>/dev/null; then
+            PREV=$(docker run --rm your-dockerhub-username/lemonade-server:latest lemonade-server --version || echo "0.0.0")
+          else
+            PREV="0.0.0"
+          fi
+          echo "PREV_VERSION=$PREV" >> $GITHUB_ENV
+          echo "Previous version: $PREV"
+
+      - name: Compare versions
+        id: compare
+        run: |
+          if [ "${{ env.LATEST_VERSION }}" = "${{ env.PREV_VERSION }}" ]; then
+            echo "No new version. Skipping build."
+            exit 0
+          else
+            echo "New version detected. Proceeding to build."
+          fi
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and Push image
+      - name: Build and Push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: your-dockerhub-username/lemonade-server:nightly
+          tags: |
+            your-dockerhub-username/lemonade-server:nightly
+            your-dockerhub-username/lemonade-server:${{ env.LATEST_VERSION }}
+
