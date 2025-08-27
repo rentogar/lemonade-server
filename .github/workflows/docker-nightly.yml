@@ -18,24 +18,20 @@ jobs:
         run: |
           LATEST=$(curl -s https://pypi.org/pypi/lemonade-server/json \
             | python3 -c "import sys,json; print(json.load(sys.stdin)['info']['version'])")
-          echo "Latest PyPI version: $LATEST"
           echo "LATEST_VERSION=$LATEST" >> $GITHUB_ENV
+          echo "Latest PyPI version: $LATEST"
 
-      - name: Get previous built version
-        id: prev
+      - name: Read last built version
+        id: last
         run: |
-          if docker pull your-dockerhub-username/lemonade-server:latest 2>/dev/null; then
-            PREV=$(docker run --rm your-dockerhub-username/lemonade-server:latest lemonade-server --version || echo "0.0.0")
-          else
-            PREV="0.0.0"
-          fi
-          echo "PREV_VERSION=$PREV" >> $GITHUB_ENV
-          echo "Previous version: $PREV"
+          LAST=$(cat last_version.txt)
+          echo "LAST_VERSION=$LAST" >> $GITHUB_ENV
+          echo "Last built version: $LAST"
 
       - name: Compare versions
         id: compare
         run: |
-          if [ "${{ env.LATEST_VERSION }}" = "${{ env.PREV_VERSION }}" ]; then
+          if [ "${{ env.LATEST_VERSION }}" = "${{ env.LAST_VERSION }}" ]; then
             echo "No new version. Skipping build."
             exit 0
           else
@@ -57,3 +53,11 @@ jobs:
             your-dockerhub-username/lemonade-server:nightly
             your-dockerhub-username/lemonade-server:${{ env.LATEST_VERSION }}
 
+      - name: Update last_version.txt
+        run: |
+          echo "${{ env.LATEST_VERSION }}" > last_version.txt
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add last_version.txt
+          git commit -m "Update last_version.txt to ${{ env.LATEST_VERSION }}"
+          git push
