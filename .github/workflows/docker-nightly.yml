@@ -17,15 +17,7 @@ jobs:
         id: pypi
         run: |
           RESPONSE=$(curl -s https://pypi.org/pypi/lemonade-server/json)
-          VERSION=$(echo "$RESPONSE" | python3 - <<'EOF'
-import sys, json
-data = json.load(sys.stdin)
-if 'info' in data and 'version' in data['info']:
-    print(data['info']['version'])
-else:
-    sys.exit(1)
-EOF
-)
+          VERSION=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['info']['version'])")
           if [ -z "$VERSION" ]; then
             echo "Failed to fetch latest version from PyPI."
             exit 1
@@ -62,8 +54,8 @@ EOF
           context: .
           push: true
           tags: |
-            <your-dockerhub-username>/lemonade-server:nightly
-            <your-dockerhub-username>/lemonade-server:${{ env.LATEST_VERSION }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/lemonade-server:nightly
+            ${{ secrets.DOCKERHUB_USERNAME }}/lemonade-server:${{ env.LATEST_VERSION }}
 
       - name: Update last_version.txt
         run: |
